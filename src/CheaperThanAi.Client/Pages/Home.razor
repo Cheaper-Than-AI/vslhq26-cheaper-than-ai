@@ -1,0 +1,66 @@
+﻿@page "/"
+@using CheaperThanAi.Shared.Requests
+@inject HttpClient Http
+
+<PageTitle>IT Support Bot</PageTitle>
+
+<div class="page">
+    <h1>IT Support Bot</h1>
+    <p class="subtitle">Describe your issue and submit a request.</p>
+
+    <EditForm Model="_request" OnValidSubmit="SubmitAsync">
+        <div class="field">
+            <label for="message">Request</label>
+            <InputTextArea id="message"
+                           @bind-Value="_request.Message"
+                           rows="8"
+                           placeholder="What do you need help with?"
+                           disabled="@_isSubmitting" />
+        </div>
+
+        <button type="submit" disabled="@(_isSubmitting || string.IsNullOrWhiteSpace(_request.Message))">
+            @(_isSubmitting ? "Submitting..." : "Submit")
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(_responseMessage))
+    {
+        <div class="response" role="status">@_responseMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="error" role="alert">@_errorMessage</div>
+    }
+</div>
+
+@code {
+    private readonly SupportRequest _request = new();
+    private string? _responseMessage;
+    private string? _errorMessage;
+    private bool _isSubmitting;
+
+    private async Task SubmitAsync()
+    {
+        _isSubmitting = true;
+        _responseMessage = null;
+        _errorMessage = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/requests", _request);
+            response.EnsureSuccessStatusCode();
+
+            var result = await response.Content.ReadFromJsonAsync<SupportResponse>();
+            _responseMessage = result?.Message ?? "No response received.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to submit your request. Please try again.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}
