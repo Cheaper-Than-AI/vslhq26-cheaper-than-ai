@@ -7,10 +7,12 @@ namespace CheaperThanAi.Server.Services
     {
         private IChatClient _chatClient;
 
-        public OllamaAiService()
+        public OllamaAiService(IConfiguration config)
         {
-            string endpoint = String.Empty;
-            string chatModel = String.Empty;
+            string endpoint = config.GetConnectionString("Ollama:Endpoint")
+                ?? throw new InvalidOperationException("Ollama endpoint not configured");
+            string chatModel = config.GetConnectionString("Ollama:Model")
+                ?? throw new InvalidOperationException("Ollama model not configured");
 
             _chatClient = new ChatClientBuilder(new OllamaApiClient(new Uri(endpoint), chatModel))
                 .UseFunctionInvocation()
