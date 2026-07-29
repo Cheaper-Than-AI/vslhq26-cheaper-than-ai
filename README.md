@@ -4,6 +4,7 @@ Hello-world scaffold for an AI-powered IT support bot.
 
 ## Projects
 
+- `CheaperThanAi.sln` — Visual Studio solution
 - `src/CheaperThanAi.Server` — ASP.NET Core host and API
 - `src/CheaperThanAi.Client` — Blazor WebAssembly UI
 - `src/CheaperThanAi.Shared` — Shared request/response models

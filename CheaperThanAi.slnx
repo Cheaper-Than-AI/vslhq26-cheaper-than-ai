@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/CheaperThanAi.Client/CheaperThanAi.Client.csproj" />
-    <Project Path="src/CheaperThanAi.Server/CheaperThanAi.Server.csproj" />
-    <Project Path="src/CheaperThanAi.Shared/CheaperThanAi.Shared.csproj" />
-  </Folder>
-</Solution>
