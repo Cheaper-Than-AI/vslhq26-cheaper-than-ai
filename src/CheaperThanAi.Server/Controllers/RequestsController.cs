@@ -12,6 +12,8 @@ public class RequestsController : ControllerBase
     {
         _ = request;
 
+
+
         return Ok(new SupportResponse
         {
             Message = "We're still working on this functionality."

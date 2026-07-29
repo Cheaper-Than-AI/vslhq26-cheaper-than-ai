@@ -1,6 +1,13 @@
+using CheaperThanAi.Server.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithTools<ITTicketTools>();
+
+builder.Services.UseOllamaClient();
 
 var app = builder.Build();
 
