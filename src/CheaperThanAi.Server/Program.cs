@@ -10,9 +10,7 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<TicketsDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("TicketsDb")));
 
-builder.Services.AddMcpServer()
-    .WithStdioServerTransport()
-    .WithTools<ITTicketTools>();
+builder.Services.AddScoped<ITTicketTools>();
 
 builder.Services.UseOllamaClient();
 
