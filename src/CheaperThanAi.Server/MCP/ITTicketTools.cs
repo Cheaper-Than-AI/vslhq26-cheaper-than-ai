@@ -1,9 +1,18 @@
-﻿using CheaperThanAi.Shared.dto;
+﻿using CheaperThanAi.Server.Data;
+using CheaperThanAi.Shared.dto;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
+using System.Text.Json;
 
 internal class ITTicketTools
 {
+    private readonly TicketsDbContext _ticketetsDbContext;
+
+    public ITTicketTools(TicketsDbContext ticketetsDbContext)
+    {
+        _ticketetsDbContext = ticketetsDbContext;
+    }
+
     [McpServerTool]
     [Description("Create a new IT ticket for the user.")]
     public string CreateITTicket(
@@ -16,9 +25,20 @@ internal class ITTicketTools
         DateTime now = DateTime.Now;
         string id = Guid.NewGuid().ToString();
 
+        var ticket = new Ticket()
+        {
+            DateTime = now,
+            Id = id,
+            Category = category,
+            PriorityLevel = priorityLevel,
+            UserName = userName,
+            IssueDescription = issueDescription
+        };
+
         // Update the database with the new ticket information
+        _ticketetsDbContext.Add(ticket);
+        _ticketetsDbContext.SaveChanges();
 
-
-        return id;
+        return JsonSerializer.Serialize(ticket);
     }
 }
