@@ -13,6 +13,10 @@
         public PriorityLevel PriorityLevel { get; set; } = default!;
 
         public string Category { get; set; } = default!;
+
+        public string[] PotentialReasonsForProblem { get; set; } = default!;
+
+        public string[] PotentialSolutions { get; set; } = default!;
     }
 
     public enum PriorityLevel

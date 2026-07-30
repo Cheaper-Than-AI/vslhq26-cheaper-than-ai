@@ -9,5 +9,11 @@ namespace CheaperThanAi.Server.Extensions
             app.AddSingleton<IAiService, OllamaAiService>();
             return app;
         }
+
+        public static IServiceCollection UseAzureClient(this IServiceCollection app)
+        {
+            app.AddSingleton<IAiService, AzureAiService>();
+            return app;
+        }
     }
 }

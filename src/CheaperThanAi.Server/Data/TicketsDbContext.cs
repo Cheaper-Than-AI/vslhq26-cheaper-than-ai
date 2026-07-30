@@ -23,6 +23,8 @@ namespace CheaperThanAi.Server.Data
                 entity.Property(e => e.IssueDescription);
                 entity.Property(e => e.PriorityLevel).HasConversion<int>();
                 entity.Property(e => e.Category).HasMaxLength(200);
+                entity.Property(e => e.PotentialReasonsForProblem).IsRequired();
+                entity.Property(e => e.PotentialSolutions).IsRequired();
             });
         }
     }
