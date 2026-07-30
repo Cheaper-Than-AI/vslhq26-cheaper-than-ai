@@ -10,6 +10,22 @@
 
     <EditForm Model="_request" OnValidSubmit="SubmitAsync">
         <div class="field">
+            <label for="name">Name</label>
+            <InputText id="name"
+                       @bind-Value="_request.Name"
+                       placeholder="Your name"
+                       disabled="@_isSubmitting" />
+        </div>
+
+        <div class="field">
+            <label for="email">Email</label>
+            <InputText id="email"
+                       @bind-Value="_request.Email"
+                       type="email"
+                       placeholder="you@example.com"
+                       disabled="@_isSubmitting" />
+        </div>
+        <div class="field">
             <label for="message">Request</label>
             <InputTextArea id="message"
                            @bind-Value="_request.Message"
