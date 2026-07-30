@@ -62,10 +62,7 @@
         <div class="error" role="alert">@_errorMessage</div>
     }
 
-    @if (!string.IsNullOrWhiteSpace(_easterEggMessage))
-    {
-        <div class="easter-egg" role="status">@_easterEggMessage</div>
-    }
+    @* Server-provided creative messages are returned as the main response message, so no separate display needed. *@
 </div>
 
 @code {
@@ -75,7 +72,6 @@
     private HashSet<string> _touchedFields = new();
     private bool _isValid = true; // start true so submit button is enabled; validation runs on blur or submit
     private bool _submitAttempted;
-    private string? _easterEggMessage;
     private string? _responseMessage;
     private string? _errorMessage;
     private bool _isSubmitting;
@@ -94,7 +90,7 @@
         _isSubmitting = true;
         _responseMessage = null;
         _errorMessage = null;
-        _easterEggMessage = null;
+        // server will return any creative response as the main Message
 
         try
         {
@@ -103,7 +99,6 @@
 
             var result = await response.Content.ReadFromJsonAsync<SupportResponse>();
             _responseMessage = result?.Message ?? "No response received.";
-            _easterEggMessage = result?.EasterEgg;
             // clear submit attempt marker on success
             _submitAttempted = false;
         }
