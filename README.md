@@ -4,15 +4,25 @@ Our project is an IT support bot that provides a cost-effective alternative to t
 
 # Technical Requirements
 - `Store ticket information in the existing SQLite database.`
+
 -`Use SQLite Full-Text Search (FTS5) to quickly locate related ticket descriptions.`
+
 -`Compare the new ticket description against existing tickets.`
+
 -`Rank results based on relevance.`
+
 -`Integrate the search functionality with the existing EF Core application.`
+
 -`Return the most relevant matching tickets.`
+
 -`Business Value`
+
 -`Reduces duplicate IT requests.`
+
 -`Helps IT staff avoid solving the same issue multiple times.`
+
 -`Allows users to find existing solutions faster.`
+
 -`Improves organization and reporting of recurring technical problems.`
 
 ## Projects
