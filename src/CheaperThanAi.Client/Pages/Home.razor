@@ -18,7 +18,8 @@
                        @bind-Value="_request.Name"
                        placeholder="Your name"
                        disabled="@_isSubmitting"
-                       @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Name))" />
+                       @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Name))"
+                       @oninput="(ChangeEventArgs _) => OnFieldInput(nameof(SupportRequest.Name))" />
             <ValidationMessage For="() => _request.Name" />
         </div>
 
@@ -29,7 +30,8 @@
                        type="email"
                        placeholder="you@example.com"
                        disabled="@_isSubmitting"
-                       @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Email))" />
+                       @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Email))"
+                       @oninput="(ChangeEventArgs _) => OnFieldInput(nameof(SupportRequest.Email))" />
             <ValidationMessage For="() => _request.Email" />
         </div>
         <div class="field">
@@ -39,7 +41,8 @@
                            rows="8"
                            placeholder="What do you need help with?"
                            disabled="@_isSubmitting"
-                           @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Message))" />
+                           @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Message))"
+                           @oninput="(ChangeEventArgs _) => OnFieldInput(nameof(SupportRequest.Message))" />
             <ValidationMessage For="() => _request.Message" />
         </div>
 
@@ -72,6 +75,8 @@
     private HashSet<string> _touchedFields = new();
     private bool _isValid = true; // start true so submit button is enabled; validation runs on blur or submit
     private bool _submitAttempted;
+    private HashSet<string> _needsValidationOnInput = new();
+    private Dictionary<string, List<string>> _currentFieldErrors = new();
     private string? _responseMessage;
     private string? _errorMessage;
     private bool _isSubmitting;
@@ -141,6 +146,24 @@
             {
                 var field = new FieldIdentifier(_request, memberName);
                 _messageStore.Add(field, validationResult.ErrorMessage);
+                // track current errors for the field
+                if (!_currentFieldErrors.TryGetValue(memberName, out var list))
+                {
+                    list = new List<string>();
+                    _currentFieldErrors[memberName] = list;
+                }
+                list.Add(validationResult.ErrorMessage);
+            }
+        }
+
+        // Clear any fields not present in validationResults
+        var fieldsWithErrors = new HashSet<string>(validationResults.SelectMany(v => v.MemberNames));
+        var keys = _currentFieldErrors.Keys.ToList();
+        foreach (var k in keys)
+        {
+            if (!fieldsWithErrors.Contains(k))
+            {
+                _currentFieldErrors.Remove(k);
             }
         }
 
@@ -165,12 +188,32 @@
             _messageStore.Add(field, r.ErrorMessage);
         }
 
+        // Update current field errors dictionary
+        if (results.Any())
+        {
+            _currentFieldErrors[field.FieldName] = results.Select(r => r.ErrorMessage ?? string.Empty).ToList();
+        }
+        else
+        {
+            _currentFieldErrors.Remove(field.FieldName);
+        }
+
         _editContext.NotifyValidationStateChanged();
 
         // Recompute overall validity by running a lightweight full validation
         var allResults = new List<ValidationResult>();
         Validator.TryValidateObject(_request, new ValidationContext(_request), allResults, validateAllProperties: true);
         _isValid = !allResults.Any();
+
+        // If this field is invalid, ensure it will be revalidated on next input
+        if (results.Any())
+        {
+            _needsValidationOnInput.Add(field.FieldName);
+        }
+        else
+        {
+            _needsValidationOnInput.Remove(field.FieldName);
+        }
     }
 
     private void OnFieldBlur(string propertyName)
@@ -180,6 +223,19 @@
         _touchedFields.Add(propertyName);
         var field = new FieldIdentifier(_request, propertyName);
         _editContext.NotifyFieldChanged(field);
+        ValidateField(field);
+    }
+
+    private void OnFieldInput(string propertyName)
+    {
+        if (_editContext is null) return;
+
+        // Only revalidate on input if the field currently has errors
+        if (!_currentFieldErrors.TryGetValue(propertyName, out var errors) || errors == null || !errors.Any())
+            return;
+
+        var field = new FieldIdentifier(_request, propertyName);
+        // Run validation for this field on input
         ValidateField(field);
     }
 
