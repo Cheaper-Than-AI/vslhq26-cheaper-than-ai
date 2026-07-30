@@ -20,6 +20,7 @@ public class RequestsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<SupportResponse>> Submit([FromBody] SupportRequest request)
     {
+        // TODO: Use MCP/AI to decide ticket creation and subject/category in the future.
         _ = request;
 
         var prompt = new List<ChatMessage>
