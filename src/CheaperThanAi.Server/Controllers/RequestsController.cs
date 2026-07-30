@@ -14,10 +14,12 @@ namespace CheaperThanAi.Server.Controllers;
 public class RequestsController : ControllerBase
 {
     private readonly IAiService _aiService;
+    private readonly TicketsDbContext _db;
 
-    public RequestsController(IAiService aiService)
+    public RequestsController(IAiService aiService, TicketsDbContext db)
     {
         _aiService = aiService;
+        _db = db;
     }
 
     [HttpPost]
@@ -38,17 +40,141 @@ public class RequestsController : ControllerBase
         var prompt = new List<ChatMessage>
         {
             new(ChatRole.System, "You are a helpful assistant that knows a lot about IT. You are going to take any problems the user" +
-            "is having and categorize, prioritize, come up with potential reasons for the problem, and potential fixes. Use the " +
-            "CreateITTicket tool to create the new IT ticket for the user."),
+            "is having and categorize, prioritize, come up with potential reasons for the problem, and potential fixes. "),
             new(ChatRole.User, $"Hi! My name is {request.Name} and my email address is {request.Email}. Here is my problem: {request.Message}")
         };
 
-        // Have AI create the ticket
-        var ticket = await _aiService.GetResponse<Ticket>(prompt);
+        // Have AI create the ticket (the AI may fill subject/category/priority)
+        var aiResponse = await _aiService.GetResponse<Ticket>(prompt);
 
+        if (aiResponse is null)
+            return Ok(new SupportResponse { Message = "Unable to create ticket at this time." });
+
+        // Attempt to extract the Ticket result from the AI response using reflection
+        Ticket? ticket = null;
+        var respType = aiResponse.GetType();
+        var resultProp = respType.GetProperty("Result") ?? respType.GetProperty("Value") ?? respType.GetProperty("Response") ?? respType.GetProperty("Output");
+        if (resultProp != null)
+        {
+            ticket = resultProp.GetValue(aiResponse) as Ticket;
+        }
+
+        if (ticket == null)
+        {
+            var getResultMethod = respType.GetMethod("GetResult") ?? respType.GetMethod("GetValue");
+            if (getResultMethod != null)
+            {
+                var maybe = getResultMethod.Invoke(aiResponse, null);
+                ticket = maybe as Ticket;
+            }
+        }
+
+        // Fallback: try JSON round-trip from the chat response string
+        if (ticket == null)
+        {
+            try
+            {
+                var json = aiResponse.ToString();
+                ticket = System.Text.Json.JsonSerializer.Deserialize<Ticket>(json);
+            }
+            catch
+            {
+                ticket = null;
+            }
+        }
+
+        if (ticket == null)
+            return Ok(new SupportResponse { Message = "The AI produced an unexpected response and no ticket could be created." });
+
+        // Ensure ticket has an ID and timestamp
+        if (string.IsNullOrWhiteSpace(ticket.Id))
+            ticket.Id = Guid.NewGuid().ToString();
+
+        if (ticket.DateTime == default)
+            ticket.DateTime = DateTime.UtcNow;
+
+        // Ensure ticket has required/common fields filled when AI omitted them.
+        // Use reflection so this code is resilient to changes in the Ticket DTO.
+        var ticketType = ticket.GetType();
+
+        // UserName
+        var userNameProp = ticketType.GetProperty("UserName");
+        if (userNameProp != null && userNameProp.CanWrite)
+        {
+            var val = userNameProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+                userNameProp.SetValue(ticket, !string.IsNullOrWhiteSpace(request.Name) ? request.Name : request.Email);
+        }
+
+        // Email-like fields
+        var emailProp = ticketType.GetProperty("Email") ?? ticketType.GetProperty("UserEmail");
+        if (emailProp != null && emailProp.CanWrite)
+        {
+            var val = emailProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+                emailProp.SetValue(ticket, request.Email);
+        }
+
+        // Subject
+        var subjectProp = ticketType.GetProperty("Subject");
+        if (subjectProp != null && subjectProp.CanWrite)
+        {
+            var val = subjectProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+            {
+                var who = !string.IsNullOrWhiteSpace(request.Name) ? request.Name : request.Email;
+                var shortMsg = (request.Message ?? string.Empty).Trim();
+                if (shortMsg.Length > 60) shortMsg = shortMsg.Substring(0, 57) + "...";
+                subjectProp.SetValue(ticket, $"Support request from {who}: {shortMsg}");
+            }
+        }
+
+        // Category
+        var categoryProp = ticketType.GetProperty("Category");
+        if (categoryProp != null && categoryProp.CanWrite)
+        {
+            var val = categoryProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+                categoryProp.SetValue(ticket, "General");
+        }
+
+        // Priority
+        var priorityProp = ticketType.GetProperty("Priority");
+        if (priorityProp != null && priorityProp.CanWrite)
+        {
+            var val = priorityProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+                priorityProp.SetValue(ticket, "Normal");
+        }
+
+        // Description/Message/Body
+        var descProp = ticketType.GetProperty("Description") ?? ticketType.GetProperty("Message") ?? ticketType.GetProperty("Body");
+        if (descProp != null && descProp.CanWrite)
+        {
+            var val = descProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+                descProp.SetValue(ticket, request.Message);
+        }
+
+        // Status
+        var statusProp = ticketType.GetProperty("Status");
+        if (statusProp != null && statusProp.CanWrite)
+        {
+            var val = statusProp.GetValue(ticket) as string;
+            if (string.IsNullOrWhiteSpace(val))
+                statusProp.SetValue(ticket, "New");
+        }
+
+        // Persist ticket to the database
+        await _db.Tickets.AddAsync(ticket);
+        await _db.SaveChangesAsync();
+
+        // Return a friendly message including the ticket ID for tracking
+        var easterMsg = BuildEasterEgg(request);
+        var baseMessage = easterMsg ?? "A ticket was created.";
         return Ok(new SupportResponse
         {
-            Message = "We're still working on this functionality."
+            Message = $"{baseMessage} Ticket ID: {ticket.Id}"
         });
     }
 
