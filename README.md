@@ -15,7 +15,7 @@ Our project is an IT support bot that provides a cost-effective alternative to t
 
 - `Return the most relevant matching tickets.`
 
-- `Business Value`
+# Business Value
 
 - `Reduces duplicate IT requests.`
 
