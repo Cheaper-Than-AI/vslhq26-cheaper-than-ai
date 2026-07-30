@@ -2,7 +2,7 @@
 
 Our project is an IT support bot that provides a cost-effective alternative to the traditional IT ticketing system. It is designed to handle common IT support requests, such as password resets, software installations, and troubleshooting, without the need for human intervention. The AI model will categorize, prioritize, and automatically create an IT ticket, reducing the manual steps in the process.
 
-#Technical Requirements
+# Technical Requirements
 Store ticket information in the existing SQLite database.
 Use SQLite Full-Text Search (FTS5) to quickly locate related ticket descriptions.
 Compare the new ticket description against existing tickets.
