@@ -1,5 +1,8 @@
 ﻿@page "/"
 @using CheaperThanAi.Shared.Requests
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Web
 @inject HttpClient Http
 
 <PageTitle>IT Support Bot</PageTitle>
@@ -8,13 +11,15 @@
     <h1>IT Support Bot</h1>
     <p class="subtitle">Describe your issue and submit a request.</p>
 
-    <EditForm Model="_request" OnValidSubmit="SubmitAsync">
+    <EditForm EditContext="_editContext" OnSubmit="HandleSubmit">
         <div class="field">
             <label for="name">Name</label>
             <InputText id="name"
                        @bind-Value="_request.Name"
                        placeholder="Your name"
-                       disabled="@_isSubmitting" />
+                       disabled="@_isSubmitting"
+                       @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Name))" />
+            <ValidationMessage For="() => _request.Name" />
         </div>
 
         <div class="field">
@@ -23,7 +28,9 @@
                        @bind-Value="_request.Email"
                        type="email"
                        placeholder="you@example.com"
-                       disabled="@_isSubmitting" />
+                       disabled="@_isSubmitting"
+                       @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Email))" />
+            <ValidationMessage For="() => _request.Email" />
         </div>
         <div class="field">
             <label for="message">Request</label>
@@ -31,12 +38,18 @@
                            @bind-Value="_request.Message"
                            rows="8"
                            placeholder="What do you need help with?"
-                           disabled="@_isSubmitting" />
+                           disabled="@_isSubmitting"
+                           @onblur="(FocusEventArgs _) => OnFieldBlur(nameof(SupportRequest.Message))" />
+            <ValidationMessage For="() => _request.Message" />
         </div>
 
-        <button type="submit" disabled="@(_isSubmitting || string.IsNullOrWhiteSpace(_request.Message))">
+        <button type="submit" disabled="@(_isSubmitting || !_isValid)">
             @(_isSubmitting ? "Submitting..." : "Submit")
         </button>
+        @if (_submitAttempted && !_isValid)
+        {
+            <div class="error" role="alert">Please fix the errors in the form above.</div>
+        }
     </EditForm>
 
     @if (!string.IsNullOrWhiteSpace(_responseMessage))
@@ -52,9 +65,23 @@
 
 @code {
     private readonly SupportRequest _request = new();
+    private EditContext _editContext = default!;
+    private ValidationMessageStore _messageStore = default!;
+    private HashSet<string> _touchedFields = new();
+    private bool _isValid = true; // start true so submit button is enabled; validation runs on blur or submit
+    private bool _submitAttempted;
     private string? _responseMessage;
     private string? _errorMessage;
     private bool _isSubmitting;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_request);
+        _messageStore = new ValidationMessageStore(_editContext);
+
+        // When the form requests full validation (e.g. on submit), run full model validation
+        _editContext.OnValidationRequested += (s, e) => ValidateModel();
+    }
 
     private async Task SubmitAsync()
     {
@@ -69,6 +96,8 @@
 
             var result = await response.Content.ReadFromJsonAsync<SupportResponse>();
             _responseMessage = result?.Message ?? "No response received.";
+            // clear submit attempt marker on success
+            _submitAttempted = false;
         }
         catch (Exception)
         {
@@ -78,5 +107,76 @@
         {
             _isSubmitting = false;
         }
+
+    }
+
+    private async Task HandleSubmit(EditContext editContext)
+    {
+        _submitAttempted = true;
+        ValidateModel();
+
+        if (!_isValid)
+        {
+            // don't proceed with submission; show field errors and the red summary below the button
+            StateHasChanged();
+            return;
+        }
+
+        await SubmitAsync();
+    }
+    private void ValidateModel()
+    {
+        _messageStore.Clear();
+
+        var validationResults = new List<ValidationResult>();
+        var context = new ValidationContext(_request, serviceProvider: null, items: null);
+        Validator.TryValidateObject(_request, context, validationResults, validateAllProperties: true);
+
+        foreach (var validationResult in validationResults)
+        {
+            foreach (var memberName in validationResult.MemberNames)
+            {
+                var field = new FieldIdentifier(_request, memberName);
+                _messageStore.Add(field, validationResult.ErrorMessage);
+            }
+        }
+
+        _editContext.NotifyValidationStateChanged();
+
+        // Update overall validity
+        _isValid = !validationResults.Any();
+    }
+
+    private void ValidateField(FieldIdentifier field)
+    {
+        _messageStore.Clear(field);
+
+        var results = new List<ValidationResult>();
+        var property = _request.GetType().GetProperty(field.FieldName);
+        var value = property?.GetValue(_request);
+        var context = new ValidationContext(_request) { MemberName = field.FieldName };
+        Validator.TryValidateProperty(value, context, results);
+
+        foreach (var r in results)
+        {
+            _messageStore.Add(field, r.ErrorMessage);
+        }
+
+        _editContext.NotifyValidationStateChanged();
+
+        // Recompute overall validity by running a lightweight full validation
+        var allResults = new List<ValidationResult>();
+        Validator.TryValidateObject(_request, new ValidationContext(_request), allResults, validateAllProperties: true);
+        _isValid = !allResults.Any();
+    }
+
+    private void OnFieldBlur(string propertyName)
+    {
+        if (_editContext is null) return;
+
+        _touchedFields.Add(propertyName);
+        var field = new FieldIdentifier(_request, propertyName);
+        _editContext.NotifyFieldChanged(field);
+        ValidateField(field);
     }
 }
