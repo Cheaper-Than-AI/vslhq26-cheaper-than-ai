@@ -1,7 +1,10 @@
 using CheaperThanAi.Server.Services;
 using CheaperThanAi.Shared.dto;
 using CheaperThanAi.Shared.Requests;
+using CheaperThanAi.Server.Data;
+using CheaperThanAi.Shared.dto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.AI;
 using System.Linq;
 
 namespace CheaperThanAi.Server.Controllers;
@@ -24,12 +27,20 @@ public class RequestsController : ControllerBase
 
         var easter = BuildEasterEgg(request);
 
+        if (easter is not null)
+        {
+            return Ok(new SupportResponse
+            {
+                Message = easter
+            });
+        }
+
         var prompt = new List<ChatMessage>
         {
             new(ChatRole.System, "You are a helpful assistant that knows a lot about IT. You are going to take any problems the user" +
             "is having and categorize, prioritize, come up with potential reasons for the problem, and potential fixes. Use the " +
             "CreateITTicket tool to create the new IT ticket for the user."),
-            new(ChatRole.User, $"Hi! My name is Maria Lastname. Here is my problem: {request.Message}")
+            new(ChatRole.User, $"Hi! My name is {request.Name} and my email address is {request.Email}. Here is my problem: {request.Message}")
         };
 
         // Have AI create the ticket
@@ -37,7 +48,7 @@ public class RequestsController : ControllerBase
 
         return Ok(new SupportResponse
         {
-            Message = easter ?? "We're still working on this functionality."
+            Message = "We're still working on this functionality."
         });
     }
 
