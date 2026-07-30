@@ -1,20 +1,20 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using CheaperThanAi.Shared.dto;
 
 namespace CheaperThanAi.Server.Data
 {
-    public class TicketsDbContext : DbContext
+    public class TicketSearchDbContext : DbContext
     {
-        public TicketsDbContext(DbContextOptions<TicketsDbContext> options) : base(options)
+        public TicketSearchDbContext(DbContextOptions<TicketSearchDbContext> options) : base(options)
         {
         }
 
-        public DbSet<Ticket> Tickets { get; set; } = null!;
+        public DbSet<TicketSearchResult> TicketSearchResult { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Ticket>(entity =>
+            modelBuilder.Entity<TicketSearchResult>(entity =>
             {
                 entity.ToTable("tickets");
                 entity.HasKey(e => e.Id);
@@ -24,8 +24,6 @@ namespace CheaperThanAi.Server.Data
                 entity.Property(e => e.IssueDescription);
                 entity.Property(e => e.PriorityLevel).HasConversion<int>();
                 entity.Property(e => e.Category).HasMaxLength(200);
-                entity.Property(e => e.PotentialReasonsForProblem).IsRequired();
-                entity.Property(e => e.PotentialSolutions).IsRequired();
             });
 
 
